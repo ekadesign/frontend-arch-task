@@ -29,15 +29,16 @@
 Объяснить проблематику и свои решения при личной беседе
 
 # Запуск
-cp -R .env.example .env
-docker-compose build
-docker-compose up
-адреса:
-localhost:8080 - api
-localhost:8080/old - старый ресурс
+- cp -R .env.example .env
+- docker-compose build
+- docker-compose up
 
-все приведенные ниже роуты являются ресурсными
-localhost:8080/couriers - курьеры
-localhost:8080/regions - регионы
-localhost:8080/leftlist - маршрутные листы
+## адреса:
+- localhost:8080 - api
+- localhost:8080/old - старый ресурс
+
+## все приведенные ниже роуты являются ресурсными
+- localhost:8080/couriers - курьеры
+- localhost:8080/regions - регионы
+- localhost:8080/leftlist - маршрутные листы
 

@@ -29,6 +29,7 @@
 Объяснить проблематику и свои решения при личной беседе
 
 # Запуск
+cp -R .env.example .env
 docker-compose up
 адреса:
 localhost:8080 - api

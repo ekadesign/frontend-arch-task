@@ -30,6 +30,7 @@
 
 # Запуск
 cp -R .env.example .env
+docker-compose build
 docker-compose up
 адреса:
 localhost:8080 - api

@@ -25,17 +25,217 @@ if (isset($_GET["func"])) {
 <!doctype html>
 <html>
 <head>
-    <link rel="stylesheet" href="/old/bootstrap/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="/old/bootstrap/css/bootstrap.min.css" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
     <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
-<!--    <script src="http://wisdomweb.ru/editor/localization.js"></script>-->
-    <meta charset="utf-8"/>
+    <link rel="stylesheet" href="https://unpkg.com/primevue/resources/themes/lara-light-green/theme.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/primevue@3.52.0/resources/primevue.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/primevue@3.52.0/core/core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <meta charset="utf-8" />
     <title>
         Задание
     </title>
 </head>
+
 <body>
+    <script src="https://unpkg.com/primevue/datatable/datatable.min.js"></script>
+    <script src="https://unpkg.com/primevue/calendar/calendar.min.js"></script>
+    <script src="https://unpkg.com/primevue/column/column.min.js"></script>
+    <script src="https://unpkg.com/primevue/inputtext/inputtext.min.js"></script>
+    <script src="https://unpkg.com/primevue/button/button.min.js"></script>
+    <script src="https://unpkg.com/primevue/dropdown/dropdown.min.js"></script>
+    <script src="https://unpkg.com/primevue/listbox/listbox.min.js"></script>
+    <div id="app">
+        <h1 class="main-title">Новая версия</h1>
+        <section class="section-block">
+            <form action="" class="add-courier">
+                <h2 class="section-title">Добавить курьера</h2>
+                <label for="username">Username</label>
+                <p-inputtext v-model="newCourier" :class="'p-inputtext p-component'"></p-inputtext>
+                <p-button label="Добавить" :class="'p-button p-component'" @click="addCourier"></p-button>
+            </form>
+        </section>
+
+        <section class="section-block">
+            <form class="add-drive-form">
+                <h2 class="section-title">Добавить поездку</h2>
+                <div class="">
+                    <label for="region">Регион</label>
+                    <p-listbox v-model="driveRegion" :options="regions" v-bind:option-label="'region'" v-bind:option-value="'region'"></p-listbox>
+                </div>
+                <div class="">
+                    <label for="region">Дата из МСК</label>
+                    <p-datepicker v-model="driveDate"></p-datepicker>
+                </div>
+                <div class="">
+                    <label for="region">Фио курьера</label>
+                    <p-listbox v-model="driveCourier" :options="couriers" v-bind:option-label="'courier'" v-bind:option-value="'id'"></p-listbox>
+                </div>
+                <p-button label="Добавить поездку" :class="'p-button p-component'" @click="addDrive"></p-button>
+            </form>
+        </section>
+
+        <section class="section-block">
+            <p-datatable :value="couriers" tableStyle="min-width: 50rem">
+                <p-column field="id" header="Id" sortable></p-column>
+                <p-column field="busy" header="Загруженность" sortable>
+                    <template #body="slotProps">
+                        {{ slotProps.data.busy === '1' ? 'Занят' : 'Свободен'}}
+                    </template>
+                </p-column>
+                <p-column field="courier" header="Имя курьера" sortable></p-column>
+                <p-column field="busytime" header="Дата загруженности" sortable></p-column>
+                <p-column header="Действия" sortable>
+                    <template #body="slotProps">
+                        <p-button label="Удалить" :class="'p-button p-component'" @click="removerCourier(slotProps.data.id)"></p-button>
+                    </template>
+                </p-column>
+            </p-datatable>
+        </section>
+
+        <section class="section-block">
+            <p-datatable :value="leftList" tableStyle="min-width: 50rem">
+                <p-column field="id" header="Id" sortable></p-column>
+                <p-column field="region" header="Регион" sortable></p-column>
+                <p-column field="courier" header="Id курьера" sortable></p-column>
+                <p-column field="start" header="Старт из МСК" sortable></p-column>
+                <p-column field="toregion" header="Дата прибытия в регион" sortable></p-column>
+                <p-column field="back" header="Дата возвращения в МСК" sortable></p-column>
+            </p-datatable>
+        </section>
+    </div>
+
+
+    <script type="module">
+        const { createApp, ref, onMounted, computed } = Vue
+        import api from '/old/api/logistic.js';
+
+        const app = createApp({
+            setup() {
+            const message = ref('Hello vue!')
+            const couriers = ref([]);
+            const regions = ref([]);
+            const leftList = ref([]);
+            const loading = ref(false);
+            const error = ref(null);
+            const newCourier = ref('');
+            const driveRegion = ref('');
+            const driveDate = ref('');
+            const driveCourier = ref('');
+
+            const driveDateServer =  computed(() => {
+                return driveDate.value !== '' ? `${driveDate.value.getFullYear()}-${driveDate.value.getMonth() + 1}-${driveDate.value.getDate()}` : '';
+            })
+
+        const driveDateComeServer = computed(() => {
+        if (!driveDate.value) return '';
+        const region = regions.value.find(region => region.region === driveRegion.value)?.time;
+        if (!region) return '';
+        const dateToRegion = new Date(driveDate.value);
+        dateToRegion.setDate(dateToRegion.getDate() + parseInt(region, 10)); 
+        const year = dateToRegion.getFullYear();
+        const month = String(dateToRegion.getMonth() + 1).padStart(2, '0');
+        const day = String(dateToRegion.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+        });
+        const driveDateBackServer = computed(() => {
+        if (!driveDate.value) return '';
+        const region = regions.value.find(region => region.region === driveRegion.value)?.time;
+        if (!region) return '';
+        const dateToRegion = new Date(driveDate.value);
+        dateToRegion.setDate(dateToRegion.getDate() + parseInt(region, 10) * 2);
+        const year = dateToRegion.getFullYear();
+        const month = String(dateToRegion.getMonth() + 1).padStart(2, '0');
+        const day = String(dateToRegion.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+        });
+
+
+
+        const fetchData = async () => {
+        loading.value = true;
+        try {
+            couriers.value = await api.getCouriers();
+            regions.value = await api.getRegions();
+            leftList.value = await api.getLeftList();
+        } catch (err) {
+            error.value = 'Failed to fetch data';
+        } finally {
+            loading.value = false;
+        }
+        };
+        const addDrive = async () => {
+            await api.addDrive({
+                courier: driveCourier.value,
+                region: driveRegion.value,
+                startDate: driveDateServer.value,
+                toRegionDate: driveDateComeServer.value,
+                backDate: driveDateBackServer.value,
+            });
+            leftList.value = await api.getLeftList();
+        }
+        const addCourier = async () => {
+            await api.addCourier(newCourier.value);
+            couriers.value = await api.getCouriers();
+        }
+        const removeCourier = async (courierId) => {
+            await api.removeCourier(courierId);
+            couriers.value = await api.getCouriers();
+        }
+
+        onMounted(() => {
+        fetchData();
+        });
+            return {
+                message,
+                regions,
+                leftList,
+                couriers,
+                newCourier,
+                addCourier,
+                driveRegion,
+                driveDate,
+                driveDateServer,
+                driveDateComeServer,
+                driveDateBackServer,
+                driveCourier,
+                addDrive,
+            }
+            }
+        })
+        app.use(primevue.config.default, { unstyled: false });
+        app.component('p-datepicker', primevue.calendar);
+        app.component('p-datatable', primevue.datatable);
+        app.component('p-column', primevue.column);
+        app.component('p-inputtext', primevue.inputtext);
+        app.component('p-button', primevue.button);
+        app.component('p-dropdown', primevue.dropdown);
+        app.component('p-listbox', primevue.listbox);
+        app.mount('#app');
+    </script>
+    <style>
+        .main-title{
+        display: flex;
+        justify-content: center;
+        text-align: center;
+        }
+        .add-drive-form {
+            display: flex; 
+            flex-direction: column;
+            margin-inline: auto;
+        }
+        .section-block {
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+    <!--  -->
+    <!--  -->
+    <!--  -->
 <div>
     <h2 style="text-align:center">Задание</h2>
 </div>
